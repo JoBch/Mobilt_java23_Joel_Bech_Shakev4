@@ -17,18 +17,15 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private TextView textView;
-    private ProgressBar progressBarX;
-    private ProgressBar progressBarZ;
-    private ProgressBar progressBarY;
+    private ProgressBar progressBarX, progressBarZ, progressBarY;
     private ImageView imageView;
 
     private SensorManager sensorManager;
-    private Sensor accelerometer;
-    private Sensor lightSensor;
+    private Sensor accelerometer, lightSensor;
 
     private long lastUpdateTime = 0;
 
-    private float[] gravity = new float[3];  // Holds gravity data
+    private float[] gravity = new float[3];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,23 +45,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if (lightSensor == null){
             Toast.makeText(this,"LightSensor not availible!", Toast.LENGTH_LONG).show();
         }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (accelerometer != null) {
-            sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-        }
-        if (lightSensor != null) {
-            sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        sensorManager.unregisterListener(this);
     }
 
     @Override
@@ -109,8 +89,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
 
                 Log.i("AccelData", String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°",zAxis, yAxis, xAxis));
-
-                //accelerometerActions(event);
             }
 
             else if (event.sensor.getType() == Sensor.TYPE_LIGHT) {
@@ -121,14 +99,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 imageView.setAlpha(opacity);
 
                 Log.i("LightSensor", "Opacity: " + opacity);
-
-                // lightSensorActions(event);
             }
         }
     }
 
 
-    public void accelerometerActions(SensorEvent event){
+/*    public void accelerometerActions(SensorEvent event){
         final float alpha = 0.8f;  //Smoothing out the values in movement
 
         //Isolate the force of gravity with the low-pass filter
@@ -176,8 +152,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             Log.i("LightSensor", "Opacity: " + opacity);
 
+    }*/
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL);
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+        sensorManager.unregisterListener(this);
+    }
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
