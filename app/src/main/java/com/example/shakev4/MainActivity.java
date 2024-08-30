@@ -23,9 +23,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private SensorManager sensorManager;
     private Sensor accelerometer, lightSensor;
 
-    private long lastUpdateTime = 0;
+    private long lastToastTime = 0;
 
-    private float[] gravity = new float[3];
+    private final float[] gravity = new float[3];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,69 +42,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
 
-        if (lightSensor == null){
-            Toast.makeText(this,"LightSensor not availible!", Toast.LENGTH_LONG).show();
+        if (lightSensor == null) {
+            Toast.makeText(this, "LightSensor not available!", Toast.LENGTH_LONG).show();
+        }
+        if (accelerometer == null){
+            Toast.makeText(this, "Accelerometer not available!", Toast.LENGTH_LONG).show();
         }
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        long currentTime = System.currentTimeMillis();
-
-        //Update interval
-        if ((currentTime - lastUpdateTime) > 200) {
-            lastUpdateTime = currentTime;
-
-            if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
-
-                final float alpha = 0.8f;  //Smoothing out the values in movement
-
-                //Isolate the force of gravity with the low-pass filter
-                gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
-                gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
-                gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
-
-                float accelX = gravity[0];
-                float accelY = gravity[1];
-                float accelZ = gravity[2];
-
-                //Calculate pitch and roll using gravity data, borrowed these calculation from the web
-                float xAxis = (float) Math.toDegrees(Math.atan2(accelY, accelZ)); //Pitch (up and down)
-                float yAxis = (float) Math.toDegrees(Math.atan2(-accelX, Math.sqrt(accelY * accelY + accelZ * accelZ))); //Roll (left and right)
-                float zAxis = (float) Math.toDegrees(Math.atan2(accelX, accelY));//Tilt (left and right standing up)
-
-                textView.setText(String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°",zAxis, yAxis, xAxis));
-                progressBarZ.setProgress((int) zAxis);
-                progressBarX.setProgress((int) xAxis);
-                progressBarY.setProgress((int) yAxis);
-
-                progressBarX.setRotation(zAxis);
-                progressBarZ.setRotation(zAxis);
-                progressBarY.setRotation(zAxis);
-                textView.setRotation(zAxis);
-                imageView.setRotation(zAxis);
-
-                if (yAxis < -30 || yAxis > 30) {
-                    Toast.makeText(this, "SLUTA LUTA", Toast.LENGTH_SHORT).show();
-                }
-
-                Log.i("AccelData", String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°",zAxis, yAxis, xAxis));
-            }
-
-            else if (event.sensor.getType() == Sensor.TYPE_LIGHT) {
-
-                float lightLevel = event.values[0]; //Light level in lux
-                Log.i("RawLightSensorData", "raw lightlevel: " + lightLevel);
-                float opacity = lightLevel / 40000f;
-                imageView.setAlpha(opacity);
-
-                Log.i("LightSensor", "Opacity: " + opacity);
-            }
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            accelerometerActions(event);
+        }
+        if (event.sensor.getType() == Sensor.TYPE_LIGHT) {
+            lightSensorActions(event);
         }
     }
 
-
-/*    public void accelerometerActions(SensorEvent event){
+    public void accelerometerActions(SensorEvent event) {
+        long currentTime = System.currentTimeMillis();
         final float alpha = 0.8f;  //Smoothing out the values in movement
 
         //Isolate the force of gravity with the low-pass filter
@@ -116,12 +73,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         float accelY = gravity[1];
         float accelZ = gravity[2];
 
-        //Calculate pitch and roll using gravity data, borrowed these calculation from the web
+        //Calculate pitch, roll and tilt using gravity data, borrowed these calculation from the web
         float xAxis = (float) Math.toDegrees(Math.atan2(accelY, accelZ)); //Pitch (up and down)
         float yAxis = (float) Math.toDegrees(Math.atan2(-accelX, Math.sqrt(accelY * accelY + accelZ * accelZ))); //Roll (left and right)
         float zAxis = (float) Math.toDegrees(Math.atan2(accelX, accelY));//Tilt (left and right standing up)
 
-        textView.setText(String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°",zAxis, yAxis, xAxis));
+        textView.setText(String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°", zAxis, yAxis, xAxis));
         progressBarZ.setProgress((int) zAxis);
         progressBarX.setProgress((int) xAxis);
         progressBarY.setProgress((int) yAxis);
@@ -132,27 +89,32 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         textView.setRotation(zAxis);
         imageView.setRotation(zAxis);
 
-        if (yAxis < -30 || yAxis > 30) {
-            Toast.makeText(this, "SLUTA LUTA", Toast.LENGTH_SHORT).show();
+        //Using my raw data to calculate if a movement is fast, like a shake
+        float deviceMovement = (float) Math.sqrt(gravity[0] * gravity[0] + gravity[1] * gravity[1] + gravity[2] * gravity[2]);
+
+        //Checking to see if the user shook the device and display a toast if true
+        int toastDelay = 2000;
+        if (deviceMovement > 15.0) {
+            if (currentTime - lastToastTime > toastDelay) {
+                Toast.makeText(this, "STOP SHAKING ME!!!", Toast.LENGTH_SHORT).show();
+                lastToastTime = currentTime;
+            }
         }
 
-        Log.i("AccelData", String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°",zAxis, yAxis, xAxis));
+        Log.i("AccelData", String.format("Z-axis: %.2f°\nY-axis: %.2f°\nX-axis: %.2f°", zAxis, yAxis, xAxis));
     }
 
-    public void lightSensorActions(SensorEvent event){
+    public void lightSensorActions(SensorEvent event) {
 
-            float lightLevel = event.values[0]; // Light level in lux
-        Log.i("RawLightSensorData", "raw lightlevel: " + lightLevel);
+        //Light level in lux
+        float lightLevel = event.values[0];
+        //Convert light level to opacity
+        float opacity = lightLevel / 40000f;
+        imageView.setAlpha(opacity);
 
-            // Convert light level to opacity (0.0 to 1.0)
-            float opacity = lightLevel / 40000f; // Adjust the divisor to fit your range
+        Log.i("LightSensor", "Opacity: " + opacity + "Raw LightSensorData: " + lightLevel);
 
-            // Clamp opacity value between 0 and 1
-            imageView.setAlpha(opacity);
-
-            Log.i("LightSensor", "Opacity: " + opacity);
-
-    }*/
+    }
 
     @Override
     protected void onResume() {
